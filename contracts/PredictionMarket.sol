@@ -4,6 +4,10 @@ import "./Owned.sol";
 
 contract PredictionMarket is Owned {
 
+    //////////////////////////
+    //// DATA DEFINITIONS ////
+    //////////////////////////
+
     // these question states are one way Open -> Waiting -> Answered
     enum QuestionState {
         Open, // still taking bets
@@ -12,8 +16,9 @@ contract PredictionMarket is Owned {
     }
 
     struct Question {
-        // can answer the question
-        address owner;
+
+        // how to check if question exists
+        bool exists;
 
         // determines which actions can occur for a question
         QuestionState state;
@@ -22,7 +27,7 @@ contract PredictionMarket is Owned {
         // keccack(answer string)
         bytes32 answer; // maybe make this fixed length unhashed ascii/utf-8?
 
-        // (answer -> whether answer choice was set by owner)
+        // (answer -> whether answer choice was set)
         mapping (bytes32 => bool) answerChoices;
 
         // (answer -> how much was bet to this answer)
@@ -36,11 +41,26 @@ contract PredictionMarket is Owned {
         mapping (address => mapping (bytes32 => uint)) userBalances;
     }
 
+    ///////////////////////////
+    //// STORAGE VARIABLES ////
+    ///////////////////////////
+
+    // only the market maker can open and answer questions
+    // different from the owner, who can start and stop the contract
+    address public maker;
+
     // actual question string can be stored offchain to avoid variable length data
     // (keccack256(question string) -> Question)
     mapping (bytes32 => Question) public questions;
 
-    // constant getters for `questions`
+    function PredictionMarket(address _maker) {
+        maker = _maker;
+    }
+
+    /////////////////
+    //// GETTERS ////
+    /////////////////
+
     function getQuestionState(bytes32 questionHash)
         questionExists(questionHash)
         constant
@@ -81,20 +101,33 @@ contract PredictionMarket is Owned {
         return questions[questionHash].userBalances[user][answer];
     }
 
-    // all events
-    event LogOpenQuestion(bytes32 questionHash, address owner, bytes32[] answerChoices);
+    ////////////////
+    //// EVENTS ////
+    ////////////////
+
+    event LogOpenQuestion(bytes32 questionHash, bytes32[] answerChoices);
     event LogWaitQuestion(bytes32 questionHash);
     event LogAnswerQuestion(bytes32 questionHash, bytes32 answer);
 
     event LogBet(bytes32 questionHash, address user, bytes32 answer, uint amount);
     event LogWithdraw(bytes32 questionHash, address user, uint amount);
 
+    ///////////////////
+    //// MODIFIERS ////
+    ///////////////////
+
+    modifier onlyMaker() {
+        require(msg.sender == maker);
+
+        _;
+    }
+
     modifier questionExists(bytes32 questionHash) {
         // make sure they actually pass a value for the question
         require(questionHash != 0);
 
         // make sure the question exists in the `questions` mapping
-        require(questions[questionHash].owner != 0);
+        require(questions[questionHash].exists);
 
         _;
     }
@@ -112,20 +145,24 @@ contract PredictionMarket is Owned {
         _;
     }
 
+    ///////////////////
+    //// FUNCTIONS ////
+    ///////////////////
+
     // questionHash should be the keccack256 of the question string
     // question state starts as `Open`
     function openQuestion(bytes32 questionHash, bytes32[] choices)
-        onlyOwner
+        onlyMaker
         public
         returns (bool success) {
 
         // make sure they actually pass a value for the question
         require(questionHash != 0);
         // make sure the question is new
-        require(questions[questionHash].owner == 0);
+        require(!questions[questionHash].exists);
 
         questions[questionHash] = Question({
-            owner: msg.sender,
+            exists: true,
             state: QuestionState.Open,
             answer: 0,
             totalBet: 0
@@ -138,14 +175,14 @@ contract PredictionMarket is Owned {
             choicesMap[choices[i]] = true;
         }
 
-        LogOpenQuestion(questionHash, msg.sender, choices);
+        LogOpenQuestion(questionHash, choices);
 
         return true;
     }
 
     // change question state from `Open` to `Wait`
     function waitQuestion(bytes32 questionHash)
-        onlyOwner
+        onlyMaker
         questionExists(questionHash)
         public
         returns (bool success) {
@@ -163,7 +200,7 @@ contract PredictionMarket is Owned {
 
     // change question state from `Wait` to `Answered`
     function answerQuestion(bytes32 questionHash, bytes32 answer)
-        onlyOwner
+        onlyMaker
         questionExists(questionHash)
         answerAllowed(questionHash, answer)
         public

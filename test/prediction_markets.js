@@ -21,7 +21,7 @@ contract("PredictionMarket", accounts => {
     const answer2 = toHex64("0x3");
 
     beforeEach(() => {
-        return PredictionMarket.new().then(newInstance => {
+        return PredictionMarket.new(accounts[0]).then(newInstance => {
             instance = newInstance;
         });
     });
