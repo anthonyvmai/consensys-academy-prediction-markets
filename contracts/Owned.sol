@@ -13,12 +13,20 @@ contract Owned {
         _;
     }
 
+    modifier onlyIfRunning() {
+        require(running);
+
+        _;
+    }
+
     function Owned() {
         owner = msg.sender;
+        running = true;
     }
 
     function changeOwner(address newOwner)
         onlyOwner
+        public
         returns (bool success) {
 
         // make sure they remembered to pass in a value
@@ -33,6 +41,7 @@ contract Owned {
 
     function toggleRunning(bool _running)
         onlyOwner
+        public
         returns (bool success) {
 
         running = _running;
