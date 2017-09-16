@@ -7,7 +7,7 @@ contract PredictionMarket is Owned {
 
     // actual question string can be stored offchain to avoid variable length data
     // (keccack256(question string) -> Question)
-    mapping (bytes32 => address) public questions;
+    mapping (bytes32 => Question) public questions;
 
     event LogOpenQuestion(bytes32 questionHash,
                           address questionAddress,
@@ -25,14 +25,14 @@ contract PredictionMarket is Owned {
         // make sure they actually pass a value for the question
         require(questionHash != 0);
         // make sure the question is new
-        require(questions[questionHash] == 0);
+        require(address(questions[questionHash]) == 0);
 
         Question question = new Question(questionHash, msg.sender, choices);
-        questions[questionHash] = address(question);
+        questions[questionHash] = question;
 
         LogOpenQuestion(questionHash, address(question), msg.sender, choices);
 
-        return address(question);
+        return question;
     }
 
     function toggleQuestionRunning(bytes32 questionHash, bool running)
@@ -41,10 +41,9 @@ contract PredictionMarket is Owned {
         public
         returns (bool success) {
 
-        address questionAddress = questions[questionHash];
+        Question question = questions[questionHash];
 
-        require(questionAddress != 0);
-        Question question = Question(questionAddress);
+        require(address(question) != 0);
 
         LogToggleQuestionRunning(questionHash, running);
 

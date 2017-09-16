@@ -49,31 +49,31 @@ contract("Question", accounts => {
         const acct1Answers1Bet = 300
 
         return instance.bet(answers[0], {from: accounts[0], value: acct0Answers0Bet}).then(tx => {
-            return instance.answerBalances(answers[0])
-        }).then(balance => {
-            assert.deepEqual(balance, web3.toBigNumber(acct0Answers0Bet),
+            return instance.answers(answers[0]);
+        }).then(answer => {
+            assert.deepEqual(answer[1], web3.toBigNumber(acct0Answers0Bet),
                 "question balance does not match amount bet")
-            return instance.getUserAnswerBalance(accounts[0], answers[0])
+            return instance.userBalances(accounts[0], answers[0])
         }).then(balance => {
             assert.deepEqual(balance, web3.toBigNumber(acct0Answers0Bet),
                 "question user balance does not match amount bet")
             return instance.bet(answers[1], {from: accounts[1], value: acct1Answers1Bet})
         }).then(tx => {
-            return instance.answerBalances(answers[1])
-        }).then(balance => {
-            assert.deepEqual(balance, web3.toBigNumber(acct1Answers1Bet),
+            return instance.answers(answers[1])
+        }).then(answer => {
+            assert.deepEqual(answer[1], web3.toBigNumber(acct1Answers1Bet),
                 "question balance does not match amount bet")
-            return instance.getUserAnswerBalance(accounts[1], answers[1])
+            return instance.userBalances(accounts[1], answers[1])
         }).then(balance => {
             assert.deepEqual(balance, web3.toBigNumber(acct1Answers1Bet),
                 "question user balance does not match amount bet")
             return instance.bet(answers[1], {from: accounts[0], value: acct0Answers1Bet})
         }).then(tx => {
-            return instance.answerBalances(answers[1])
-        }).then(balance => {
-            assert.deepEqual(balance, web3.toBigNumber(acct0Answers1Bet + acct1Answers1Bet),
+            return instance.answers(answers[1])
+        }).then(answer => {
+            assert.deepEqual(answer[1], web3.toBigNumber(acct0Answers1Bet + acct1Answers1Bet),
                 "question balance does not match amount bet")
-            return instance.getUserAnswerBalance(accounts[0], answers[1])
+            return instance.userBalances(accounts[0], answers[1])
         }).then(balance => {
             assert.deepEqual(balance, web3.toBigNumber(acct0Answers1Bet),
                 "question user balance does not match amount bet")

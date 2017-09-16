@@ -11,6 +11,14 @@ contract Question is Owned {
         Answered // answered and able to withdraw
     }
 
+    struct Answer {
+        // whether the asker set this answer as a choice
+        bool allowedChoice;
+
+        // how much has been bet on this answer
+        uint balance;
+    }
+
     // only one who can change question state
     address public askerAnswerer;
 
@@ -24,11 +32,8 @@ contract Question is Owned {
     // keccack(answer string)
     bytes32 public theAnswer; // maybe make this fixed length unhashed ascii/utf-8?
 
-    // (answer -> whether answer is an allowed choice)
-    mapping (bytes32 => bool) public answerChoices;
-
-    // (answer -> how much was bet to this answer)
-    mapping (bytes32 => uint) public answerBalances;
+    // (answer hash -> Answer)
+    mapping (bytes32 => Answer) public answers;
 
     // used for ease of payout calculation
     uint public totalBet;
@@ -46,17 +51,20 @@ contract Question is Owned {
         state = QuestionState.Open;
 
         for (uint i = 0; i < choices.length; i++) {
-            answerChoices[choices[i]] = true;
+            // make sure they actually pass a value for the answer
+            require(choices[i] != 0);
+
+            answers[choices[i]] = Answer({
+                allowedChoice: true,
+                balance: 0
+            });
         }
     }
 
     // whether the answer is in the mapping of choices
     modifier answerAllowed(bytes32 answer) {
-        // make sure they actually pass a value for the answer
-        require(answer != 0);
-
         // make sure the answer is an allowed choice for the question
-        require(answerChoices[answer]);
+        require(answers[answer].allowedChoice);
 
         _;
     }
@@ -71,16 +79,6 @@ contract Question is Owned {
     event LogAnswerQuestion(bytes32 answer);
     event LogBet(address user, bytes32 answer, uint amount);
     event LogWithdraw(address user, uint amount);
-
-    // getter for nested mapping `userBalances`
-    function getUserAnswerBalance(address user, bytes32 answer)
-        answerAllowed(answer)
-        constant
-        public
-        returns (uint userAnswerBalance) {
-
-        return userBalances[user][answer];
-    }
 
     // change question state from `Open` to `Wait`
     function waitQuestion()
@@ -128,7 +126,7 @@ contract Question is Owned {
         require(state == QuestionState.Open);
 
         totalBet += msg.value;
-        answerBalances[answer] += msg.value;
+        answers[answer].balance += msg.value;
         userBalances[msg.sender][answer] += msg.value;
 
         LogBet(msg.sender, answer, msg.value);
@@ -146,7 +144,7 @@ contract Question is Owned {
         require(userBalances[msg.sender][theAnswer] != 0);
 
         // TODO: how to avoid losing the decimal remainder
-        uint amount = (userBalances[msg.sender][theAnswer] * totalBet) / answerBalances[theAnswer];
+        uint amount = (userBalances[msg.sender][theAnswer] * totalBet) / answers[theAnswer].balance;
 
         // disallow double withdrawal
         // the balances for wrong answers can stay non-zero because they're not used
